@@ -1,0 +1,11 @@
+nn_code/**/models/
+**/__pycache__/
+.idea/
+sn_env/
+data/
+report/
+!report/*.tex
+!report/*.bib
+**/gradio_cached_examples/
+**/flagged/
+models/*/outputs_test/
