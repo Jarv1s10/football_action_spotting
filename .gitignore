@@ -3,7 +3,7 @@ nn_code/**/models/
 .idea/
 sn_env/
 data/
-report/
+report/*
 !report/*.tex
 !report/*.bib
 **/gradio_cached_examples/
