@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from SoccerNet.Evaluation.utils import INVERSE_EVENT_DICTIONARY_V2
 
-module_path = os.path.abspath(os.path.join('..'))
+module_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 if module_path not in sys.path:
     sys.path.append(module_path)
 
@@ -21,7 +21,7 @@ from models.netvlad_plusplus.code.dataset import feats2clip
 def load_model(model_name: str = 'netvlad_plusplus', model_kwargs: dict = {}):
     print('loading model from checkpoing...')
     model = importlib.import_module(f'models.{model_name}.code.model').Model(**model_kwargs)
-    checkpoint = torch.load(os.path.join("../models", model_name, "model.pth.tar"))
+    checkpoint = torch.load(os.path.join(os.path.dirname(__file__), os.pardir, "models", model_name, "model.pth.tar"))
     model.load_state_dict(checkpoint['state_dict'])
     
     model.eval()
@@ -131,6 +131,9 @@ def render_predictions_on_video(input_video_path: str, predictions: dict) -> str
                         2, 
                         cv2.LINE_4)
         
+        cv2.imshow('Predictions', frame)
+        if cv2.waitKey(25) & 0xFF == ord('q'):
+            break
         out.write(frame)
         
     vid.release()
