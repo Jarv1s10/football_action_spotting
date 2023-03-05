@@ -56,10 +56,9 @@ def get_predictions(input_video_path: str) -> dict:
     
     features_output_path=os.path.join(os.path.dirname(__file__), os.pardir, 'data', 'demo', 'features', os.path.basename(input_video_path).split('.')[0])+'.npy'
     
-    feature_extractor = VideoFeatureExtractor(load_resnet= not os.path.exists(features_output_path))
+    feature_extractor = VideoFeatureExtractor(load_resnet = True)
     
-    video_features = feature_extractor.extract_features(video_input_path=input_video_path,
-                                                        features_output_path=features_output_path)
+    video_features = feature_extractor.extract_features(video_input_path=input_video_path, overwrite=True)
     
     clip_features = feats2clip(torch.from_numpy(video_features), stride=1, clip_length=clip_length_seconds*framerate, off=clip_length_seconds)
     output_long = []
@@ -130,7 +129,13 @@ def render_predictions_on_video(input_video_path: str, predictions: dict) -> str
                         (0, 255, 255), 
                         2, 
                         cv2.LINE_4)
-        
+        cv2.putText(frame, 
+                    ':'.join(map(lambda x: str(int(x)).zfill(2), divmod(seconds, 60))),
+                    (50, 50), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, 
+                    (100, 100, 100), 
+                    2, 
+                    cv2.LINE_4)
         cv2.imshow('Predictions', frame)
         if cv2.waitKey(25) & 0xFF == ord('q'):
             break
@@ -141,14 +146,3 @@ def render_predictions_on_video(input_video_path: str, predictions: dict) -> str
     cv2.destroyAllWindows()
     
     return output_video_path
-
-def inference_video(input_video_path: str) -> str:
-    predictions = get_predictions(input_video_path)
-    output_video_path = render_predictions_on_video(input_video_path, predictions)
-    
-    return output_video_path
-    
-    
-if __name__ == "__main__":
-    res = inference_video('../data/demo/videos/example.mp4')
-    print(res)

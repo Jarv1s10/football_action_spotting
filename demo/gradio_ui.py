@@ -1,9 +1,6 @@
 import os
 import gradio as gr
-from model_inference import inference_video, get_predictions, render_predictions_on_video
-
-# demo = gr.Interface(inference_video, 'video', 'playable_video',
-#                     cache_examples=True)
+from model_inference import get_predictions, render_predictions_on_video
 
 with gr.Blocks() as demo:
     with gr.Row():
