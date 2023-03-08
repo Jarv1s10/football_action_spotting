@@ -116,7 +116,7 @@ def render_predictions_on_video(input_video_path: str, predictions: dict) -> str
             break
         
         seconds = frame_idx // framerate
-        pred_frame = [pred for pred in predictions if 0 <= pred['seconds'] - seconds <= 10]
+        pred_frame = [pred for pred in predictions if 0 <= seconds - pred['seconds'] <= 10]
 
         for i, pred in enumerate(pred_frame, start=1):
             time = ':'.join(map(lambda x: str(x).zfill(2), pred['time']))
