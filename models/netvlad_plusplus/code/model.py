@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from einops import rearrange
 
 
 class NLLLoss(nn.Module):
@@ -9,7 +10,7 @@ class NLLLoss(nn.Module):
         super(NLLLoss, self).__init__()
 
     def forward(self, labels, output):
-        return torch.mean(torch.mean(labels * -torch.log(output) + (1 - labels) * -torch.log(1 - output)))
+        return torch.mean(torch.mean(labels * - torch.log(output) + (1 - labels) * - torch.log(1 - output)))
 
 
 class NetVLAD(nn.Module):
@@ -72,10 +73,15 @@ class Model(nn.Module):
         self.framerate = framerate
         self.vlad_k = vocab_size
 
-        self.pool_layer_before = NetVLAD(cluster_size=int(self.vlad_k / 2), feature_size=self.input_size,
+        if self.input_size != 512:
+            self.feature_extractor = nn.Linear(self.input_size, 512)
+            self.input_size = 512
+
+        self.pool_layer_before = NetVLAD(cluster_size=self.vlad_k // 2, feature_size=self.input_size,
                                          add_batch_norm=True)
-        self.pool_layer_after = NetVLAD(cluster_size=int(self.vlad_k / 2), feature_size=self.input_size,
+        self.pool_layer_after = NetVLAD(cluster_size=self.vlad_k // 2, feature_size=self.input_size,
                                         add_batch_norm=True)
+
         self.fc = nn.Linear(input_size * self.vlad_k, self.num_classes + 1)
 
         self.drop = nn.Dropout(p=0.4)
@@ -89,7 +95,11 @@ class Model(nn.Module):
             print(f"=> loaded checkpoint '{weights}' (epoch {checkpoint['epoch']})")
 
     def forward(self, inputs):
-        # `inputs` shape: (batch,frames,dim_features)
+        # `inputs` shape: (batch, frames, dim_features)
+        if inputs.shape[-1] != self.input_size:
+            inputs = rearrange(inputs, 'b fr d -> (b fr) d')
+            inputs = self.feature_extractor(inputs)
+            inputs = rearrange(inputs, '(b fr) d -> b fr d', fr=self.window_size_frame)
 
         nb_frames_50 = int(inputs.shape[1] / 2)
         inputs_before_pooled = self.pool_layer_before(inputs[:, :nb_frames_50, :])

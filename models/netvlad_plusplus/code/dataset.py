@@ -1,15 +1,12 @@
-from torch.utils.data import Dataset
-
-import numpy as np
 import os
-
-import torch
-
-import logging
 import json
 
+import torch
+from torch.utils.data import Dataset
+import numpy as np
+from tqdm import tqdm
+
 from SoccerNet.Downloader import getListGames
-from SoccerNet.Downloader import SoccerNetDownloader
 from SoccerNet.Evaluation.utils import EVENT_DICTIONARY_V2
 
 
@@ -32,14 +29,17 @@ def feats2clip(feats, stride, clip_length, padding="replicate_last", off=0):
     if padding == "replicate_last":
         idx = idx.clamp(0, feats.shape[0] - 1)
 
-    # idx = torch.arange(feats.shape[0] * clip_length).view((-1, clip_length, feats.shape[-1]))
     return feats[idx, ...]
 
 
-class SoccerNetClips(Dataset):
-    def __init__(self, path, features, split, framerate=2, window_size=15):
-        self.path = path
-        self.listGames = getListGames(split)
+class SoccerNetFeatures(Dataset):
+    def __init__(self, features_path, labels_path, features, split, framerate=2, window_size=15):
+        self.features_path = features_path
+        self.labels_path = labels_path
+
+        self.split = split
+        self.listGames = getListGames(split)[:50]
+
         self.features = features
         self.window_size_frame = window_size * framerate
         self.dict_event = EVENT_DICTIONARY_V2
@@ -49,21 +49,16 @@ class SoccerNetClips(Dataset):
         self.game_feats = list()
         self.game_labels = list()
 
-        print(f'Started loading features for {split[0]} split...')
-        for game in self.listGames:
+        for game in tqdm(self.listGames):
             # Load features
-            feat_half1 = np.load(os.path.join(self.path, game, "1_" + self.features))
-            feat_half1 = feat_half1.reshape(-1, feat_half1.shape[-1])
-            feat_half2 = np.load(os.path.join(self.path, game, "2_" + self.features))
-            feat_half2 = feat_half2.reshape(-1, feat_half2.shape[-1])
+            feat_half1 = np.load(os.path.join(self.features_path, game, "1_" + self.features))
+            feat_half2 = np.load(os.path.join(self.features_path, game, "2_" + self.features))
 
-            feat_half1 = feats2clip(torch.from_numpy(feat_half1), stride=self.window_size_frame,
-                                    clip_length=self.window_size_frame)
-            feat_half2 = feats2clip(torch.from_numpy(feat_half2), stride=self.window_size_frame,
-                                    clip_length=self.window_size_frame)
+            feat_half1 = feats2clip(torch.from_numpy(feat_half1), stride=self.window_size_frame, clip_length=self.window_size_frame)
+            feat_half2 = feats2clip(torch.from_numpy(feat_half2), stride=self.window_size_frame, clip_length=self.window_size_frame)
 
             # Load labels
-            labels = json.load(open(os.path.join(self.path, game, self.labels)))
+            labels = json.load(open(os.path.join(self.labels_path, game, self.labels)))
 
             label_half1 = np.zeros((feat_half1.shape[0], self.num_classes + 1))
             label_half1[:, 0] = 1  # those are BG classes
@@ -71,7 +66,6 @@ class SoccerNetClips(Dataset):
             label_half2[:, 0] = 1  # those are BG classes
 
             for annotation in labels["annotations"]:
-
                 time = annotation["gameTime"]
                 event = annotation["label"]
 
@@ -116,14 +110,17 @@ class SoccerNetClips(Dataset):
         return len(self.game_feats)
 
 
-class SoccerNetClipsTesting(Dataset):
-    def __init__(self, path, features, split=("test",), framerate=2, window_size=15):
-        self.path = path
-        self.listGames = getListGames(split)[:1]
+class SoccerNetFeaturesTest(Dataset):
+    def __init__(self, features_path, labels_path, features, split, framerate=2, window_size=15):
+        self.features_path = features_path
+        self.labels_path = labels_path
         self.features = features
+
+        self.split = split
+        self.listGames = getListGames(split)
+
         self.window_size_frame = window_size * framerate
         self.framerate = framerate
-        self.split = split
         self.dict_event = EVENT_DICTIONARY_V2
         self.num_classes = 17
         self.labels = "Labels-v2.json"
@@ -139,9 +136,9 @@ class SoccerNetClipsTesting(Dataset):
             label_half2 (np.array): labels (one-hot) for the 2nd half.
         """
         # Load features
-        feat_half1 = np.load(os.path.join(os.pardir, os.pardir, self.path, self.listGames[index], "1_" + self.features))
+        feat_half1 = np.load(os.path.join(os.pardir, os.pardir, self.features_path, self.listGames[index], "1_" + self.features))
         feat_half1 = feat_half1.reshape(-1, feat_half1.shape[-1])
-        feat_half2 = np.load(os.path.join(os.pardir, os.pardir, self.path, self.listGames[index], "2_" + self.features))
+        feat_half2 = np.load(os.path.join(os.pardir, os.pardir, self.features_path, self.listGames[index], "2_" + self.features))
         feat_half2 = feat_half2.reshape(-1, feat_half2.shape[-1])
 
         # Load labels
@@ -149,7 +146,7 @@ class SoccerNetClipsTesting(Dataset):
         label_half2 = np.zeros((feat_half2.shape[0], self.num_classes))
 
         # check if annoation exists
-        labels_path = os.path.join(self.path, self.listGames[index], self.labels)
+        labels_path = os.path.join(self.labels_path, self.listGames[index], self.labels)
         if os.path.exists(labels_path):
             with open(labels_path) as f:
                 labels = json.load(f)

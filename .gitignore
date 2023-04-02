@@ -4,8 +4,8 @@ nn_code/**/models/
 sn_env/
 data/
 report/*
-!report/*.tex
-!report/*.bib
+!report/**/*.tex
+!report/**/*.bib
 **/gradio_cached_examples/
 **/flagged/
 models/*/outputs_test/

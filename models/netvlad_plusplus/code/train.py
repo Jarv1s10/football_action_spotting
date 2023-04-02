@@ -1,17 +1,16 @@
 import os
-import torch
-import numpy as np
 
-from sklearn.metrics import average_precision_score
+import torch
+
 from SoccerNet.Evaluation.utils import AverageMeter
 
 
-def trainer(train_loader, val_loader, model, optimizer, scheduler, loss_func, model_name, max_epochs=1000):
+def trainer(train_loader, val_loader, model, optimizer, scheduler, loss_func, max_epochs):
     best_loss = 9e99
 
     for epoch in range(max_epochs):
         print(f'Epoch {epoch} started.')
-        best_model_path = os.path.join("models", model_name, "model.pth.tar")
+        best_model_path = os.path.join(os.path.basename(__file__), os.pardir, "model.pth.tar")
 
         # train for one epoch
         loss_training = train(train_loader, model, loss_func, optimizer, train_mode=True)
@@ -19,16 +18,15 @@ def trainer(train_loader, val_loader, model, optimizer, scheduler, loss_func, mo
         # evaluate on validation set
         loss_validation = train(val_loader, model, loss_func, optimizer, train_mode=False)
 
+        is_better = loss_validation < best_loss
+        best_loss = min(loss_validation, best_loss)
+
         state = {
             'epoch': epoch + 1,
             'state_dict': model.state_dict(),
             'best_loss': best_loss,
             'optimizer': optimizer.state_dict(),
         }
-        os.makedirs(os.path.join("../models", model_name), exist_ok=True)
-
-        is_better = loss_validation < best_loss
-        best_loss = min(loss_validation, best_loss)
 
         if is_better:
             torch.save(state, best_model_path)
