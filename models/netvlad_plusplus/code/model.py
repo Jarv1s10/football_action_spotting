@@ -28,7 +28,6 @@ class NetVLAD(nn.Module):
         # x [BS, T, D]
         max_sample = x.size()[1]
 
-        # LOUPE
         if self.add_batch_norm:
             x = F.normalize(x, p=2, dim=2)
 
